@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Blend Words">
+<title>Blend Words</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2306D6A0'/%3E%3Ctext x='50' y='65' font-size='36' font-family='Arial,Helvetica,sans-serif' font-weight='900' fill='white' text-anchor='middle'%3Eabc%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, "SF Pro Rounded", "Helvetica Neue", Arial, sans-serif;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px 160px;
+    box-sizing: border-box;
+    transition: background-color 0.25s ease;
+  }
+  #word {
+    font-weight: 900;
+    color: #fff;
+    letter-spacing: 0.01em;
+    text-shadow: 0 6px 0 rgba(0,0,0,0.15), 0 12px 24px rgba(0,0,0,0.25);
+    transform: scale(1);
+    transition: transform 0.12s ease;
+    line-height: 1;
+    white-space: nowrap;
+    text-align: center;
+  }
+  #word.pulse {
+    transform: scale(1.08);
+  }
+  #hint {
+    position: fixed;
+    bottom: calc(env(safe-area-inset-bottom, 12px) + 108px);
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: rgba(255,255,255,0.75);
+    font-size: 15px;
+    font-weight: 600;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    pointer-events: none;
+  }
+  #controlBar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px calc(env(safe-area-inset-bottom, 12px) + 14px);
+    z-index: 20;
+  }
+  .circleBtn {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+    border: 3px solid transparent;
+    transition: transform 0.12s ease, border-color 0.12s ease;
+    flex-shrink: 0;
+  }
+  #checkBtn { background: #06D6A0; color: #fff; }
+  #xBtn { background: #EF476F; color: #fff; }
+  #checkBtn.selected, #xBtn.selected {
+    border-color: #fff;
+    transform: scale(1.1);
+  }
+  #finishBtn {
+    padding: 0 22px;
+    height: 50px;
+    border-radius: 25px;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  #speakBtn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  #overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.65);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 30;
+    padding: 24px;
+  }
+  #overlay.open { display: flex; }
+  #panel {
+    background: #1c1c1e;
+    border-radius: 24px;
+    padding: 28px 24px 24px;
+    width: 100%;
+    max-width: 360px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  #panel h2 {
+    color: #fff;
+    font-size: 22px;
+    margin: 0 0 18px;
+  }
+  #scoreRow {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .scoreBox {
+    flex: 1;
+    border-radius: 16px;
+    padding: 14px 8px;
+  }
+  #correctBox { background: rgba(6,214,160,0.18); }
+  #incorrectBox { background: rgba(239,71,111,0.18); }
+  .scoreNum {
+    font-size: 32px;
+    font-weight: 900;
+    color: #fff;
+  }
+  .scoreLabel {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.65);
+    margin-top: 2px;
+  }
+  #missedTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.65);
+    margin: 0 0 10px;
+    text-align: left;
+  }
+  #missedList {
+    list-style: none;
+    margin: 0 0 20px;
+    padding: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #missedList li {
+    background: rgba(239,71,111,0.18);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 12px;
+  }
+  #missedEmpty {
+    color: rgba(255,255,255,0.6);
+    font-size: 15px;
+    margin: 0 0 20px;
+  }
+  #newSessionBtn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    background: #06D6A0;
+    color: #062;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+  <div id="stage">
+    <div id="word">word</div>
+  </div>
+  <div id="hint">Tap anywhere for the next word</div>
+
+  <div id="controlBar">
+    <div id="checkBtn" class="circleBtn">✓</div>
+    <div id="xBtn" class="circleBtn">✗</div>
+    <div id="finishBtn">Finish</div>
+    <div id="speakBtn">❓</div>
+  </div>
+
+  <div id="overlay">
+    <div id="panel">
+      <h2>Session Complete</h2>
+      <div id="scoreRow">
+        <div id="correctBox" class="scoreBox">
+          <div class="scoreNum" id="correctNum">0</div>
+          <div class="scoreLabel">Correct</div>
+        </div>
+        <div id="incorrectBox" class="scoreBox">
+          <div class="scoreNum" id="incorrectNum">0</div>
+          <div class="scoreLabel">Incorrect</div>
+        </div>
+      </div>
+      <div id="missedTitle">Words to practice</div>
+      <ul id="missedList"></ul>
+      <p id="missedEmpty" style="display:none;">No misses — great job! 🎉</p>
+      <div id="newSessionBtn">Start New Session</div>
+    </div>
+  </div>
+
+<script>
+  const RAW_WORDS = [
+    'lake','flake','late','plate','slate','rack','track','tick','stick','tuck',
+    'truck','struck','stuck','strain','spray','cream','scream','stream','spree','rap',
+    'scrap','scrape','scrappy','scrimp','strut','stump','limp','blimp','fleck','speck',
+    'pecks','pend','spend','click','clack','clock','cluck','clucked','clicks','rips',
+    'drip','trip','flip','grip','clip','blip','whip','wing','sting','fling',
+    'sling','cling',
+    'slant','plant','lick','slick','flick','brick','trick','stricken','tricky','ring',
+    'string','bring','burning','throw','three','thrice','thick','think','twine','slump',
+    'clumped','lumpy','lamps','clamp','lump','clump','splat','splash','splashes','splashed',
+    'tamp','stamp','tramp','rend','trends','stray','strife','stride','stripe','clang',
+    'slang','string','strap','strike','striking','strobe','strut','struck','streets','stream',
+    'streak','screech',
+    'ever','never','even','excited','except','certain','plus','early','earlier','usually',
+    'strange','whole','while','however','smiles','extra','example','wonder','what','that',
+    'was','saw','has'
+  ];
+  const WORDS = [...new Set(RAW_WORDS)];
+
+  const stage = document.getElementById('stage');
+  const wordEl = document.getElementById('word');
+  const hint = document.getElementById('hint');
+  const checkBtn = document.getElementById('checkBtn');
+  const xBtn = document.getElementById('xBtn');
+  const finishBtn = document.getElementById('finishBtn');
+  const speakBtn = document.getElementById('speakBtn');
+  const overlay = document.getElementById('overlay');
+  const correctNum = document.getElementById('correctNum');
+  const incorrectNum = document.getElementById('incorrectNum');
+  const missedList = document.getElementById('missedList');
+  const missedEmpty = document.getElementById('missedEmpty');
+  const newSessionBtn = document.getElementById('newSessionBtn');
+
+  const COLORS = ['#3A86FF', '#8338EC', '#FB5607', '#118AB2', '#06D6A0', '#EF476F', '#FFB703'];
+
+  let currentWord = '';
+  let correctCount = 0;
+  let incorrectCount = 0;
+  let incorrectWords = [];
+  let judgment = null; // null | 'correct' | 'incorrect'
+
+  function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function pickWord() {
+    if (WORDS.length === 1) return WORDS[0];
+    let next;
+    do {
+      next = WORDS[randomInt(0, WORDS.length - 1)];
+    } while (next === currentWord);
+    return next;
+  }
+
+  function fitWordText() {
+    const maxWidth = window.innerWidth - 48;
+    const maxHeight = window.innerHeight - 260;
+    let fontSize = Math.min(window.innerWidth, window.innerHeight) * 0.42;
+    wordEl.style.fontSize = fontSize + 'px';
+    while (fontSize > 12 && (wordEl.scrollWidth > maxWidth || wordEl.scrollHeight > maxHeight)) {
+      fontSize -= 2;
+      wordEl.style.fontSize = fontSize + 'px';
+    }
+  }
+
+  function clearJudgment() {
+    judgment = null;
+    checkBtn.classList.remove('selected');
+    xBtn.classList.remove('selected');
+  }
+
+  function showNewWord() {
+    currentWord = pickWord();
+    wordEl.textContent = currentWord;
+    fitWordText();
+    stage.style.backgroundColor = COLORS[randomInt(0, COLORS.length - 1)];
+    wordEl.classList.remove('pulse');
+    void wordEl.offsetWidth;
+    wordEl.classList.add('pulse');
+    clearJudgment();
+  }
+
+  function speakWord() {
+    if (!('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(currentWord);
+    utterance.rate = 0.85;
+    utterance.lang = 'en-US';
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function markCorrect() {
+    correctCount++;
+    judgment = 'correct';
+    checkBtn.classList.add('selected');
+    showNewWord();
+  }
+
+  function markIncorrect() {
+    incorrectCount++;
+    incorrectWords.push(currentWord);
+    judgment = 'incorrect';
+    xBtn.classList.add('selected');
+    showNewWord();
+  }
+
+  function openResults() {
+    correctNum.textContent = correctCount;
+    incorrectNum.textContent = incorrectCount;
+    missedList.innerHTML = '';
+    if (incorrectWords.length === 0) {
+      missedList.style.display = 'none';
+      missedEmpty.style.display = 'block';
+    } else {
+      missedList.style.display = 'flex';
+      missedEmpty.style.display = 'none';
+      incorrectWords.forEach((w) => {
+        const li = document.createElement('li');
+        li.textContent = w;
+        missedList.appendChild(li);
+      });
+    }
+    overlay.classList.add('open');
+  }
+
+  function resetSession() {
+    correctCount = 0;
+    incorrectCount = 0;
+    incorrectWords = [];
+    overlay.classList.remove('open');
+    showNewWord();
+  }
+
+  window.addEventListener('resize', fitWordText);
+
+  stage.addEventListener('click', showNewWord);
+
+  checkBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    markCorrect();
+  });
+
+  xBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    markIncorrect();
+  });
+
+  finishBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openResults();
+  });
+
+  speakBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    speakWord();
+  });
+
+  newSessionBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetSession();
+  });
+
+  showNewWord();
+</script>
+</body>
+</html>
