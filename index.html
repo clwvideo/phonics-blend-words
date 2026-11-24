@@ -11,6 +11,8 @@
 <style>
   :root {
     color-scheme: dark;
+    --top: env(safe-area-inset-top, 0px);
+    --bottom: env(safe-area-inset-bottom, 0px);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -18,45 +20,59 @@
     padding: 0;
     height: 100%;
     overflow: hidden;
+    background: #121214;
     font-family: -apple-system, "SF Pro Rounded", "Helvetica Neue", Arial, sans-serif;
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
   }
-  #stage {
-    position: fixed;
-    inset: 0;
+  button { font: inherit; color: inherit; border: 0; margin: 0; padding: 0; cursor: pointer; background: none; }
+  [hidden] { display: none !important; }
+
+  /* ---------- Practice screen ---------- */
+  #stage { position: fixed; inset: 0; transition: background-color 0.25s ease; }
+  #box {
+    position: absolute;
+    top: calc(var(--top) + 52px);
+    bottom: calc(var(--bottom) + 136px);
+    left: 24px;
+    right: 24px;
     display: flex;
     align-items: center;
-    justify-content: center;
-    padding: 40px 20px 160px;
-    box-sizing: border-box;
-    transition: background-color 0.25s ease;
   }
   #word {
+    width: 100%;
     font-weight: 900;
     color: #fff;
     letter-spacing: 0.01em;
-    text-shadow: 0 6px 0 rgba(0,0,0,0.15), 0 12px 24px rgba(0,0,0,0.25);
-    transform: scale(1);
-    transition: transform 0.12s ease;
-    line-height: 1;
-    white-space: nowrap;
+    text-shadow: 0 3px 0 rgba(0,0,0,0.15), 0 8px 20px rgba(0,0,0,0.25);
+    line-height: 1.15;
     text-align: center;
+    text-wrap: balance;
   }
-  #word.pulse {
-    transform: scale(1.08);
-  }
-  #hint {
+  #word.single { white-space: nowrap; }
+  #word.pulse { animation: pop 0.18s ease; }
+  @keyframes pop { from { transform: scale(0.92); } to { transform: scale(1); } }
+  #progress {
     position: fixed;
-    bottom: calc(env(safe-area-inset-bottom, 12px) + 108px);
+    top: calc(var(--top) + 16px);
     left: 0;
     right: 0;
     text-align: center;
-    color: rgba(255,255,255,0.75);
+    color: rgba(255,255,255,0.9);
+    font-size: 15px;
+    font-weight: 700;
+    pointer-events: none;
+  }
+  #hint {
+    position: fixed;
+    bottom: calc(var(--bottom) + 102px);
+    left: 0;
+    right: 0;
+    text-align: center;
+    color: rgba(255,255,255,0.9);
     font-size: 15px;
     font-weight: 600;
-    text-shadow: 0 2px 6px rgba(0,0,0,0.25);
     pointer-events: none;
   }
   #controlBar {
@@ -66,350 +82,560 @@
     bottom: 0;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding: 14px 16px calc(env(safe-area-inset-bottom, 12px) + 14px);
-    z-index: 20;
+    gap: clamp(8px, 3vw, 14px);
+    padding: 14px 16px calc(var(--bottom) + 22px);
   }
   .circleBtn {
-    width: 62px;
-    height: 62px;
+    width: clamp(52px, 16vw, 62px);
+    height: clamp(52px, 16vw, 62px);
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     font-size: 28px;
     font-weight: 800;
-    cursor: pointer;
+    color: #fff;
+    border: 3px solid #fff;
     box-shadow: 0 6px 16px rgba(0,0,0,0.3);
-    border: 3px solid transparent;
-    transition: transform 0.12s ease, border-color 0.12s ease;
     flex-shrink: 0;
   }
-  #checkBtn { background: #06D6A0; color: #fff; }
-  #xBtn { background: #EF476F; color: #fff; }
-  #checkBtn.selected, #xBtn.selected {
-    border-color: #fff;
-    transform: scale(1.1);
-  }
+  .circleBtn:active { transform: scale(1.1); }
+  #checkBtn { background: #12A150; }
+  #xBtn { background: #D92D3A; }
   #finishBtn {
-    padding: 0 22px;
+    padding: 0 clamp(14px, 5vw, 22px);
     height: 50px;
     border-radius: 25px;
-    background: rgba(255,255,255,0.18);
-    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.28);
     color: #fff;
     font-weight: 700;
     font-size: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
     flex-shrink: 0;
   }
   #speakBtn {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: rgba(255,255,255,0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: rgba(255,255,255,0.9);
     font-size: 22px;
-    cursor: pointer;
-    backdrop-filter: blur(4px);
     margin-left: auto;
     flex-shrink: 0;
   }
-  #overlay {
+
+  /* ---------- Start, results and pack screens ---------- */
+  .screen {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.65);
-    display: none;
-    align-items: center;
-    justify-content: center;
     z-index: 30;
-    padding: 24px;
-  }
-  #overlay.open { display: flex; }
-  #panel {
-    background: #1c1c1e;
-    border-radius: 24px;
-    padding: 28px 24px 24px;
-    width: 100%;
-    max-width: 360px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-    text-align: center;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  }
-  #panel h2 {
+    background: #121214;
     color: #fff;
-    font-size: 22px;
-    margin: 0 0 18px;
-  }
-  #scoreRow {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-  .scoreBox {
-    flex: 1;
-    border-radius: 16px;
-    padding: 14px 8px;
-  }
-  #correctBox { background: rgba(6,214,160,0.18); }
-  #incorrectBox { background: rgba(239,71,111,0.18); }
-  .scoreNum {
-    font-size: 32px;
-    font-weight: 900;
-    color: #fff;
-  }
-  .scoreLabel {
-    font-size: 13px;
-    font-weight: 600;
-    color: rgba(255,255,255,0.65);
-    margin-top: 2px;
-  }
-  #missedTitle {
-    font-size: 14px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.65);
-    margin: 0 0 10px;
-    text-align: left;
-  }
-  #missedList {
-    list-style: none;
-    margin: 0 0 20px;
-    padding: 0;
     overflow-y: auto;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
+    -webkit-overflow-scrolling: touch;
   }
-  #missedList li {
-    background: rgba(239,71,111,0.18);
-    color: #fff;
-    font-size: 15px;
-    font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 12px;
+  .inner {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: calc(var(--top) + 24px) 20px calc(var(--bottom) + 28px);
   }
-  #missedEmpty {
-    color: rgba(255,255,255,0.6);
-    font-size: 15px;
-    margin: 0 0 20px;
-  }
-  #newSessionBtn {
-    width: 100%;
-    padding: 14px;
+  h1 { font-size: 30px; font-weight: 900; margin: 0 0 20px; text-align: center; }
+  h2 { font-size: 16px; font-weight: 700; margin: 0 0 10px; color: rgba(255,255,255,0.75); }
+  .row { display: flex; align-items: baseline; justify-content: space-between; }
+  .links { display: flex; gap: 18px; }
+  .link { color: #5CD6B0; font-size: 16px; font-weight: 700; padding: 8px 0; }
+  .grid { display: grid; gap: 8px; margin-bottom: 24px; }
+  #typeGrid { grid-template-columns: repeat(2, 1fr); }
+  #listGrid { grid-template-columns: repeat(5, 1fr); }
+  .chip {
+    min-height: 48px;
     border-radius: 14px;
-    background: #06D6A0;
-    color: #062;
+    background: rgba(255,255,255,0.1);
     font-size: 17px;
     font-weight: 700;
-    cursor: pointer;
-    flex-shrink: 0;
+    border: 2px solid transparent;
+  }
+  .chip.on { background: #06795B; border-color: #5CD6B0; }
+  .chip:disabled { opacity: 0.28; }
+  #listGrid .wide { grid-column: 1 / -1; }
+  .primary, .secondary {
+    display: block;
+    width: 100%;
+    min-height: 54px;
+    padding: 14px;
+    border-radius: 16px;
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+  .primary { background: #06D6A0; color: #00382A; }
+  .primary:disabled { opacity: 0.35; }
+  .secondary { background: rgba(255,255,255,0.12); }
+  .note { font-size: 15px; line-height: 1.4; color: rgba(255,255,255,0.75); margin: 0 0 16px; }
+  .note.error { color: #FF9AA2; }
+  #packLine { text-align: center; margin: 10px 0 0; }
+  #version { text-align: center; font-size: 13px; color: rgba(255,255,255,0.55); margin: 8px 0 0; }
+  #scoreRow { display: flex; gap: 12px; margin-bottom: 24px; }
+  .scoreBox { flex: 1; border-radius: 16px; padding: 14px 8px; text-align: center; }
+  #correctBox { background: rgba(6,214,160,0.2); }
+  #incorrectBox { background: rgba(239,71,111,0.25); }
+  .scoreNum { font-size: 36px; font-weight: 900; }
+  .scoreLabel { font-size: 14px; font-weight: 600; color: rgba(255,255,255,0.8); }
+  .missed { list-style: none; margin: 0 0 20px; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  .missed li {
+    background: rgba(239,71,111,0.25);
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    padding: 8px 14px;
+    border-radius: 12px;
+  }
+  .missed.lines li { width: 100%; }
+  textarea {
+    width: 100%;
+    height: 150px;
+    border-radius: 14px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: #1c1c1e;
+    color: #fff;
+    font: inherit;
+    font-size: 16px;
+    padding: 12px;
+    margin-bottom: 12px;
+    user-select: text;
+    -webkit-user-select: text;
   }
 </style>
 </head>
 <body>
-  <div id="stage">
-    <div id="word">word</div>
-  </div>
-  <div id="hint">Tap anywhere for the next word</div>
-
+  <div id="stage"><div id="box"><div id="word"></div></div></div>
+  <div id="progress"></div>
+  <div id="hint">Tap anywhere to skip to the next one</div>
   <div id="controlBar">
-    <div id="checkBtn" class="circleBtn">✓</div>
-    <div id="xBtn" class="circleBtn">✗</div>
-    <div id="finishBtn">Finish</div>
-    <div id="speakBtn">❓</div>
+    <button id="checkBtn" class="circleBtn" aria-label="Correct">✓</button>
+    <button id="xBtn" class="circleBtn" aria-label="Incorrect">✗</button>
+    <button id="finishBtn">Finish</button>
+    <button id="speakBtn" aria-label="Say it out loud">❓</button>
   </div>
 
-  <div id="overlay">
-    <div id="panel">
-      <h2>Session Complete</h2>
-      <div id="scoreRow">
-        <div id="correctBox" class="scoreBox">
-          <div class="scoreNum" id="correctNum">0</div>
-          <div class="scoreLabel">Correct</div>
-        </div>
-        <div id="incorrectBox" class="scoreBox">
-          <div class="scoreNum" id="incorrectNum">0</div>
-          <div class="scoreLabel">Incorrect</div>
-        </div>
-      </div>
-      <div id="missedTitle">Words to practice</div>
-      <ul id="missedList"></ul>
-      <p id="missedEmpty" style="display:none;">No misses — great job! 🎉</p>
-      <div id="newSessionBtn">Start New Session</div>
+  <div id="startScreen" class="screen"><div class="inner">
+    <h1>Blend Words</h1>
+    <h2>What to practice</h2>
+    <div id="typeGrid" class="grid"></div>
+    <div class="row">
+      <h2>Which lists</h2>
+      <div class="links"><button id="allBtn" class="link">All</button><button id="noneBtn" class="link">None</button></div>
     </div>
-  </div>
+    <div id="listGrid" class="grid"></div>
+    <p id="startNote" class="note" hidden></p>
+    <button id="startBtn" class="primary">Start</button>
+    <p id="packLine"><button id="packBtn" class="link"></button></p>
+    <p id="version">Version 2</p>
+  </div></div>
+
+  <div id="resultsScreen" class="screen" hidden><div class="inner">
+    <h1>Session Complete</h1>
+    <div id="scoreRow">
+      <div id="correctBox" class="scoreBox"><div class="scoreNum" id="correctNum">0</div><div class="scoreLabel">Correct</div></div>
+      <div id="incorrectBox" class="scoreBox"><div class="scoreNum" id="incorrectNum">0</div><div class="scoreLabel">Incorrect</div></div>
+    </div>
+    <div id="missedArea"></div>
+    <button id="practiceMissedBtn" class="primary">Practice missed</button>
+    <button id="newSessionBtn" class="secondary">New session</button>
+  </div></div>
+
+  <div id="packScreen" class="screen" hidden><div class="inner">
+    <h1>School pack</h1>
+    <p class="note">The pack holds the phrases and sentences. It is saved only on this device and is never sent anywhere.</p>
+    <p id="packStatus" class="note"></p>
+    <button id="chooseBtn" class="primary">Choose pack file</button>
+    <input id="packFile" type="file" hidden>
+    <h2>Or paste the pack text</h2>
+    <textarea id="packText" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="# Level 131&#10;## Phrases&#10;..."></textarea>
+    <button id="savePasteBtn" class="secondary">Save pasted text</button>
+    <button id="removePackBtn" class="secondary">Remove pack from this device</button>
+    <button id="packBackBtn" class="secondary">Back</button>
+  </div></div>
 
 <script>
-  const RAW_WORDS = [
-    'lake','flake','late','plate','slate','rack','track','tick','stick','tuck',
-    'truck','struck','stuck','strain','spray','cream','scream','stream','spree','rap',
-    'scrap','scrape','scrappy','scrimp','strut','stump','limp','blimp','fleck','speck',
-    'pecks','pend','spend','click','clack','clock','cluck','clucked','clicks','rips',
-    'drip','trip','flip','grip','clip','blip','whip','wing','sting','fling',
-    'sling','cling',
-    'slant','plant','lick','slick','flick','brick','trick','stricken','tricky','ring',
-    'string','bring','burning','throw','three','thrice','thick','think','twine','slump',
-    'clumped','lumpy','lamps','clamp','lump','clump','splat','splash','splashes','splashed',
-    'tamp','stamp','tramp','rend','trends','stray','strife','stride','stripe','clang',
-    'slang','string','strap','strike','striking','strobe','strut','struck','streets','stream',
-    'streak','screech',
-    'ever','never','even','excited','except','certain','plus','early','earlier','usually',
-    'strange','whole','while','however','smiles','extra','example','wonder','what','that',
-    'was','saw','has'
-  ];
-  const WORDS = [...new Set(RAW_WORDS)];
+  // ---------- Built-in words ----------
+  const BUILT_IN = {
+    Blends: `
+      lake flake late plate slate rack track tick stick tuck truck struck stuck strain spray cream scream
+      stream spree rap scrap scrape scrappy scrimp strut stump limp blimp fleck speck pecks pend spend
+      click clack clock cluck clucked clicks rips drip trip flip grip clip blip whip wing sting fling
+      sling cling slant plant lick slick flick brick trick stricken tricky ring string bring burning throw
+      three thrice thick think twine slump clumped lumpy lamps clamp lump clump splat splash splashes
+      splashed tamp stamp tramp rend trends stray strife stride stripe clang slang strap strike striking
+      strobe streets streak screech ever never even excited except certain plus early earlier usually
+      strange whole while however smiles extra example wonder what that was saw has`,
+    131: `
+      making shaver taped baker bravest named waving later rarest shaped faking raked paved daring
+      careless taken shameful taping taking careful safest hateful blamed trading staring caring shapeless`,
+    133: `
+      time dime side bike five shine like life nine mine wife wide size mile wipe kite dine file vine pipe
+      lime pile tide wise line hike drive smile prize bride strike spikes chimes inside sometimes sunshine
+      sunrise beside bedtime fire wire tire hire wireless campfire`,
+    135: `
+      why when white which whale while whip whiff whether whisper whiskers whimper safe life save mine
+      gave mile time line kite game ride take make size five bike side lake fine like dime wide late fire
+      date plane quite brave state shape spiteful grapes safest later making saving tired shining taking
+      safer bravest saved smiling wireless ripen`,
+    138: `
+      use tube cute cube tune rule June mule pure mute cure prune flute crude fumes prunes`,
+    139: `
+      here these eve`,
+    140: `
+      invite behave rotate tadpole polite admire escape costume mistake vampire locate inhale exhale
+      confuse compete entire excuse reptile dispute invade female provide profile consume stampede promote
+      suppose empire dictate umpire compare refuse debate ignite combine trombone volume ozone advise
+      unite united`,
+    141: `
+      rain tail main fail nail aim wait pain mail jail bait sail hail aid pail rail paint train snail
+      plain waist stain chain brain trail braid grain drain strain sprain air pair fair hair chair stairs
+      airplane airport haircut hairbrush staircase upstairs`,
+    143: `
+      compare combine compete compute rotate dictate estate debate excuse exhale expect extend expire
+      empire vampire umpire entire retire desire admire super supper suppose support refuse consume
+      confuse below beside behave became inhale invite propel provide promote profile costume require
+      revise`,
+    144: `
+      day may way say pay lay ray May play stay clay gray tray sway spray stray driveway someday runway
+      maybe today says`,
+    145: `
+      see feet week free need beef bee tree heel jeep feed feel keep meet peek peel deer weep beep weeds
+      beets queen three creep green cheer teeth greet seek seen seem sheep speed sheet sweet sweep sleet
+      sleep steep street sleeve screech cheese breeze sneeze tweeze geese freeze squeeze tweezers been`,
+    146: `
+      feelings greetings cheerful meeting sleeveless seventeen nineteen sixteen fifteen wheelchair beehive
+      beekeeper sleepover weekend weekday`,
+    147: `
+      eat sea read team each year real hear leaf mean lead meat meal ear tear east neat tea seat weak seal
+      heat deal fear lean heal beak bead heap beat peak dear cream leave jeans beach teach least clear
+      peach clean reach leash beard dream feast cheap scream please tease grease crease dreaming peaches
+      cleanest leaner reached pleased sealed cheaper leading neater sneaking teacher eating tearful
+      hearing leafless meaning leader dearest healed sneakers seated weaker leaped clearing reading heaped
+      heated teabag peanut nearby meanwhile beanbag backseat teammate teardrop drumbeat daydream upstream
+      earring peapod northeast`,
+    149: `
+      seem air say eat sea use make year wait weak stay hair each week home like feel take mail team here
+      feet life keep game male need hear free meat meet these reach three while those plane horse brave
+      train state plain please street`,
+    150: `
+      boat soap coat oak road goat load coal oats loaf moan roam loan foam soak foal toad moat roast float
+      coast groan toast coach boast goal croak throat tugboat cockroach lifeboat oatmeal railroad raincoat
+      sailboat roadway charcoal overcoat coastline`,
+    151: `
+      snow low row bow tow slow crow show glow own bowl blow blown grow grown growth throw thrown rainbow
+      rowboat slowest grown-up show-off scarecrow snowman snowstorm snowflake meanwhile runway nearby
+      upstate springtime baseball sometimes sunshine airport daydream haircut haystack weekend weekday
+      seashell tugboat railroad snowfall lifeboat airplane raincoat somewhere teabag classmate oatmeal
+      sailboat driveway today homemade mailbox playtime airmail babysitter`,
+    152: `
+      window Friday shadow raisin coffee beneath remain okay season freedom cocoa Sunday detail widow
+      elbow fifteen contain below beaver reveal eager delay reason subway follow hollow shallow yellow
+      fellow mellow pillow willow bellow`,
+    154: `
+      right tight night light high might fight sigh sight bright thigh slight flight tightest lighter
+      highest fighter sighed brightest sightless sunlight highway tonight flashlight spotlight midnight
+      lightning daylight firefighter nightmare tighten brighten frighten`,
+    157: `
+      slowly weekly safely fairly clearly softly sweetly briskly neatly deeply rarely quickly bravely
+      hardly silently eagerly lightly slightly tightly brightly really suddenly carefully hopefully`,
+    160: `
+      more wore sore core score store shore swore snore tore bore adore before ignore drugstore scoreless`,
+  };
 
-  const stage = document.getElementById('stage');
-  const wordEl = document.getElementById('word');
-  const hint = document.getElementById('hint');
-  const checkBtn = document.getElementById('checkBtn');
-  const xBtn = document.getElementById('xBtn');
-  const finishBtn = document.getElementById('finishBtn');
-  const speakBtn = document.getElementById('speakBtn');
-  const overlay = document.getElementById('overlay');
-  const correctNum = document.getElementById('correctNum');
-  const incorrectNum = document.getElementById('incorrectNum');
-  const missedList = document.getElementById('missedList');
-  const missedEmpty = document.getElementById('missedEmpty');
-  const newSessionBtn = document.getElementById('newSessionBtn');
+  const TYPES = ['Words', 'Phrases', 'Sentences'];
+  const COLORS = ['#2563C9', '#7433C4', '#B4420F', '#0E6F8C', '#0B7A55', '#B01E62', '#8A5A00'];
+  const PACK_KEY = 'blendWords.pack';
+  const PREF_KEY = 'blendWords.prefs';
+  const $ = (id) => document.getElementById(id);
 
-  const COLORS = ['#3A86FF', '#8338EC', '#FB5607', '#118AB2', '#06D6A0', '#EF476F', '#FFB703'];
+  // Storage can be blocked (for example in Private Browsing), so never let it stop the app.
+  function load(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function save(key, value) { try { localStorage.setItem(key, value); return true; } catch (e) { return false; } }
+  function remove(key) { try { localStorage.removeItem(key); } catch (e) {} }
 
-  let currentWord = '';
-  let correctCount = 0;
-  let incorrectCount = 0;
-  let incorrectWords = [];
-  let judgment = null; // null | 'correct' | 'incorrect'
+  // ---------- Content ----------
+  let library = {};   // list name -> { Words: [], Phrases: [], Sentences: [] }
+  let packCounts = { Phrases: 0, Sentences: 0, Words: 0 };
 
-  function randomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
+  function parsePack(text) {
+    const out = {};
+    let level = null, type = null;
+    text.replace(/^﻿/, '').split(/\r\n|\r|\n/).forEach((raw) => {
+      const line = raw.trim();
+      let m;
+      if (!line) return;
+      if ((m = line.match(/^#\s*Level\s+(\d+)$/i))) { level = m[1]; type = null; return; }
+      if ((m = line.match(/^##\s*(words|phrases|sentences)$/i))) {
+        type = m[1][0].toUpperCase() + m[1].slice(1).toLowerCase();
+        return;
+      }
+      if (line[0] === '#' || !level || !type) return;
+      out[level] = out[level] || {};
+      (out[level][type] = out[level][type] || []).push(line);
+    });
+    return out;
   }
 
-  function pickWord() {
-    if (WORDS.length === 1) return WORDS[0];
-    let next;
-    do {
-      next = WORDS[randomInt(0, WORDS.length - 1)];
-    } while (next === currentWord);
-    return next;
+  function countPack(pack) {
+    const c = { Words: 0, Phrases: 0, Sentences: 0 };
+    Object.values(pack).forEach((l) => TYPES.forEach((t) => { c[t] += (l[t] || []).length; }));
+    return c;
   }
 
-  function fitWordText() {
-    const maxWidth = window.innerWidth - 48;
-    const maxHeight = window.innerHeight - 260;
-    let fontSize = Math.min(window.innerWidth, window.innerHeight) * 0.42;
-    wordEl.style.fontSize = fontSize + 'px';
-    while (fontSize > 12 && (wordEl.scrollWidth > maxWidth || wordEl.scrollHeight > maxHeight)) {
-      fontSize -= 2;
-      wordEl.style.fontSize = fontSize + 'px';
+  function buildLibrary() {
+    library = {};
+    const add = (list, type, items) => {
+      library[list] = library[list] || { Words: [], Phrases: [], Sentences: [] };
+      library[list][type].push(...items);
+    };
+    Object.keys(BUILT_IN).forEach((k) => add(k, 'Words', BUILT_IN[k].trim().split(/\s+/)));
+    const pack = parsePack(load(PACK_KEY) || '');
+    packCounts = countPack(pack);
+    Object.keys(pack).forEach((k) => TYPES.forEach((t) => { if (pack[k][t]) add(k, t, pack[k][t]); }));
+  }
+
+  // ---------- Start screen ----------
+  let prefs = { type: 'Words', lists: ['Blends'] };
+  try {
+    const p = JSON.parse(load(PREF_KEY));
+    if (p && (TYPES.includes(p.type) || p.type === 'Mix') && Array.isArray(p.lists)) prefs = p;
+  } catch (e) {}
+
+  const typesFor = (type) => (type === 'Mix' ? TYPES : [type]);
+  const listSize = (list) => typesFor(prefs.type).reduce((n, t) => n + library[list][t].length, 0);
+  const listNames = () => Object.keys(library).sort((a, b) =>
+    a === 'Blends' ? -1 : b === 'Blends' ? 1 : Number(a) - Number(b));
+
+  function collect() {
+    const seen = new Set(), items = [];
+    listNames().filter((l) => prefs.lists.includes(l)).forEach((l) => {
+      typesFor(prefs.type).forEach((t) => library[l][t].forEach((text) => {
+        if (seen.has(text)) return;
+        seen.add(text);
+        items.push({ text, type: t, list: l });
+      }));
+    });
+    return items;
+  }
+
+  function chip(label, on, disabled, onTap) {
+    const b = document.createElement('button');
+    b.className = 'chip' + (on ? ' on' : '');
+    b.textContent = label;
+    b.disabled = disabled;
+    b.setAttribute('aria-pressed', String(on));
+    b.addEventListener('click', onTap);
+    return b;
+  }
+
+  function renderStart() {
+    save(PREF_KEY, JSON.stringify(prefs));
+    const typeGrid = $('typeGrid'), listGrid = $('listGrid');
+    typeGrid.replaceChildren(...[...TYPES, 'Mix'].map((t) =>
+      chip(t, prefs.type === t, false, () => { prefs.type = t; renderStart(); })));
+    listGrid.replaceChildren(...listNames().map((l) => {
+      const empty = listSize(l) === 0;
+      const b = chip(l === 'Blends' ? 'Blends (original list)' : l, prefs.lists.includes(l) && !empty, empty, () => {
+        prefs.lists = prefs.lists.includes(l) ? prefs.lists.filter((x) => x !== l) : [...prefs.lists, l];
+        renderStart();
+      });
+      if (l === 'Blends') b.classList.add('wide');
+      return b;
+    }));
+
+    const n = collect().length;
+    const needPack = prefs.type !== 'Words' && packCounts.Phrases + packCounts.Sentences === 0;
+    const note = $('startNote');
+    note.hidden = !(needPack || n === 0);
+    note.textContent = needPack
+      ? 'Phrases and sentences need the school pack. Tap "Add school pack" below.'
+      : 'Choose at least one list.';
+    $('startBtn').disabled = n === 0;
+    $('startBtn').textContent = n === 0 ? 'Start' : 'Start (' + n + ')';
+    $('packBtn').textContent = packCounts.Phrases + packCounts.Sentences + packCounts.Words
+      ? 'School pack: ' + packCounts.Phrases + ' phrases, ' + packCounts.Sentences + ' sentences'
+      : 'Add school pack';
+  }
+
+  function showScreen(id) {
+    ['startScreen', 'resultsScreen', 'packScreen'].forEach((s) => { $(s).hidden = s !== id; });
+    if (id) $(id).scrollTop = 0;
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }
+
+  // ---------- Practice ----------
+  let items = [], deck = [], shown = 0, current = null, endWhenDone = false;
+  let correctCount = 0, incorrectCount = 0, missed = [], lastMark = 0, lastColor = '';
+
+  function shuffle(a) {
+    const b = [...a];
+    for (let i = b.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [b[i], b[j]] = [b[j], b[i]];
+    }
+    return b;
+  }
+
+  function startSession(list, once) {
+    items = list;
+    endWhenDone = once;
+    deck = [];
+    shown = 0;
+    current = null;
+    correctCount = incorrectCount = 0;
+    missed = [];
+    showScreen(null);
+    next();
+  }
+
+  function next() {
+    if (deck.length === 0) {
+      if (endWhenDone && current) return openResults();
+      deck = shuffle(items);
+      shown = 0;
+      // Don't open the new round with the item that just closed the last one.
+      if (current && deck.length > 1 && deck[deck.length - 1].text === current.text) deck.reverse();
+    }
+    current = deck.pop();
+    shown++;
+    const w = $('word');
+    w.textContent = current.text;
+    w.className = current.type === 'Words' ? 'single' : '';
+    let color;
+    do { color = COLORS[Math.floor(Math.random() * COLORS.length)]; } while (color === lastColor);
+    lastColor = color;
+    $('stage').style.backgroundColor = color;
+    $('progress').textContent = (current.list === 'Blends' ? 'Blends' : 'Level ' + current.list) +
+      '  ·  ' + shown + ' of ' + items.length;
+    fit();
+    void w.offsetWidth;
+    w.classList.add('pulse');
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }
+
+  function fit() {
+    if (!current) return;
+    const w = $('word'), box = $('box');
+    const scale = { Words: 0.42, Phrases: 0.19, Sentences: 0.135 }[current.type];
+    let size = Math.min(window.innerWidth, window.innerHeight, 640) * scale;
+    w.style.fontSize = size + 'px';
+    while (size > 14 && (w.scrollWidth > box.clientWidth || w.scrollHeight > box.clientHeight)) {
+      size -= 1;
+      w.style.fontSize = size + 'px';
     }
   }
 
-  function clearJudgment() {
-    judgment = null;
-    checkBtn.classList.remove('selected');
-    xBtn.classList.remove('selected');
+  function mark(correct) {
+    const now = Date.now();
+    if (now - lastMark < 300) return;   // ignore an accidental double tap
+    lastMark = now;
+    if (correct) correctCount++;
+    else {
+      incorrectCount++;
+      if (!missed.some((m) => m.text === current.text)) missed.push(current);
+    }
+    next();
   }
 
-  function showNewWord() {
-    currentWord = pickWord();
-    wordEl.textContent = currentWord;
-    fitWordText();
-    stage.style.backgroundColor = COLORS[randomInt(0, COLORS.length - 1)];
-    wordEl.classList.remove('pulse');
-    void wordEl.offsetWidth;
-    wordEl.classList.add('pulse');
-    clearJudgment();
-  }
-
-  function speakWord() {
-    if (!('speechSynthesis' in window)) return;
+  function speak() {
+    if (!('speechSynthesis' in window) || !current) return;
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(currentWord);
-    utterance.rate = 0.85;
-    utterance.lang = 'en-US';
-    window.speechSynthesis.speak(utterance);
-  }
-
-  function markCorrect() {
-    correctCount++;
-    judgment = 'correct';
-    checkBtn.classList.add('selected');
-    showNewWord();
-  }
-
-  function markIncorrect() {
-    incorrectCount++;
-    incorrectWords.push(currentWord);
-    judgment = 'incorrect';
-    xBtn.classList.add('selected');
-    showNewWord();
+    const u = new SpeechSynthesisUtterance(current.text);
+    u.rate = 0.85;
+    u.lang = 'en-US';
+    window.speechSynthesis.speak(u);
   }
 
   function openResults() {
-    correctNum.textContent = correctCount;
-    incorrectNum.textContent = incorrectCount;
-    missedList.innerHTML = '';
-    if (incorrectWords.length === 0) {
-      missedList.style.display = 'none';
-      missedEmpty.style.display = 'block';
-    } else {
-      missedList.style.display = 'flex';
-      missedEmpty.style.display = 'none';
-      incorrectWords.forEach((w) => {
+    $('correctNum').textContent = correctCount;
+    $('incorrectNum').textContent = incorrectCount;
+    const area = $('missedArea');
+    area.replaceChildren();
+    TYPES.forEach((t) => {
+      const group = missed.filter((m) => m.type === t);
+      if (!group.length) return;
+      const h = document.createElement('h2');
+      h.textContent = t + ' to practice';
+      const ul = document.createElement('ul');
+      ul.className = 'missed' + (t === 'Words' ? '' : ' lines');
+      group.forEach((m) => {
         const li = document.createElement('li');
-        li.textContent = w;
-        missedList.appendChild(li);
+        li.textContent = m.text;
+        ul.appendChild(li);
       });
+      area.append(h, ul);
+    });
+    if (!missed.length) {
+      const p = document.createElement('p');
+      p.className = 'note';
+      p.style.textAlign = 'center';
+      p.textContent = correctCount ? 'No misses. Great job! 🎉' : 'Nothing was marked this time.';
+      area.append(p);
     }
-    overlay.classList.add('open');
+    $('practiceMissedBtn').hidden = !missed.length;
+    $('practiceMissedBtn').textContent = 'Practice missed (' + missed.length + ')';
+    showScreen('resultsScreen');
   }
 
-  function resetSession() {
-    correctCount = 0;
-    incorrectCount = 0;
-    incorrectWords = [];
-    overlay.classList.remove('open');
-    showNewWord();
+  // ---------- School pack ----------
+  function showPack(message, isError) {
+    const total = packCounts.Phrases + packCounts.Sentences + packCounts.Words;
+    $('packStatus').textContent = message || (total
+      ? 'Saved on this device: ' + packCounts.Phrases + ' phrases and ' + packCounts.Sentences + ' sentences.'
+      : 'No pack on this device yet.');
+    $('packStatus').classList.toggle('error', !!isError);
+    $('removePackBtn').hidden = !total;
   }
 
-  window.addEventListener('resize', fitWordText);
+  function savePack(text) {
+    const c = countPack(parsePack(text));
+    if (c.Words + c.Phrases + c.Sentences === 0) {
+      return showPack('That does not look like a pack. It needs lines such as "# Level 131" and "## Phrases".', true);
+    }
+    if (!save(PACK_KEY, text)) {
+      return showPack('This browser would not save the pack. Private Browsing may be on.', true);
+    }
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    buildLibrary();
+    $('packText').value = '';
+    showPack('Saved: ' + c.Phrases + ' phrases and ' + c.Sentences + ' sentences.');
+  }
 
-  stage.addEventListener('click', showNewWord);
-
-  checkBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    markCorrect();
+  $('chooseBtn').addEventListener('click', () => $('packFile').click());
+  $('packFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 500000) showPack('That file is too big to be a pack.', true);
+    else {
+      try { savePack(await file.text()); } catch (err) { showPack('That file could not be read.', true); }
+    }
+    e.target.value = '';
   });
-
-  xBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    markIncorrect();
+  $('savePasteBtn').addEventListener('click', () => savePack($('packText').value));
+  $('removePackBtn').addEventListener('click', () => {
+    if (!window.confirm('Remove the school pack from this device?')) return;
+    remove(PACK_KEY);
+    buildLibrary();
+    showPack();
   });
+  $('packBtn').addEventListener('click', () => { showPack(); showScreen('packScreen'); });
+  $('packBackBtn').addEventListener('click', () => { renderStart(); showScreen('startScreen'); });
 
-  finishBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    openResults();
-  });
+  // ---------- Buttons ----------
+  $('allBtn').addEventListener('click', () => { prefs.lists = listNames(); renderStart(); });
+  $('noneBtn').addEventListener('click', () => { prefs.lists = []; renderStart(); });
+  $('startBtn').addEventListener('click', () => startSession(collect(), false));
+  $('practiceMissedBtn').addEventListener('click', () => startSession(missed, true));
+  $('newSessionBtn').addEventListener('click', () => { renderStart(); showScreen('startScreen'); });
+  $('stage').addEventListener('click', () => { if (current) next(); });
+  $('checkBtn').addEventListener('click', () => mark(true));
+  $('xBtn').addEventListener('click', () => mark(false));
+  $('finishBtn').addEventListener('click', openResults);
+  $('speakBtn').addEventListener('click', speak);
+  window.addEventListener('resize', fit);
 
-  speakBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    speakWord();
-  });
-
-  newSessionBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    resetSession();
-  });
-
-  showNewWord();
+  buildLibrary();
+  renderStart();
+  showScreen('startScreen');
 </script>
 </body>
 </html>
